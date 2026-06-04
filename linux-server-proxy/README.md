@@ -190,13 +190,99 @@ curl -s -X PUT http://127.0.0.1:9090/proxies/BoostNet \
 curl -x http://127.0.0.1:7890 https://ipinfo.io/country
 ```
 
-## 9. 停止代理
+## 9. 测速并选择更快节点
+
+Mihomo 控制 API 可以直接对某个节点做延迟测试。节点名如果包含空格、中文或 emoji，需要 URL 编码，所以建议用 Python 调用 API。
+
+下面示例会在 `BoostNet` 代理组里筛选新加坡节点，逐个测试 `http://www.gstatic.com/generate_204`，然后自动切换到延迟最低的节点：
+
+```bash
+python3 - <<'PY'
+import json
+import urllib.parse
+import urllib.request
+
+BASE = 'http://127.0.0.1:9090'
+GROUP = 'BoostNet'
+KEYWORDS = ('新加坡', 'SG')
+TEST_URL = 'http://www.gstatic.com/generate_204'
+
+with urllib.request.urlopen(f'{BASE}/proxies', timeout=5) as response:
+    data = json.load(response)
+
+group = data['proxies'][GROUP]
+nodes = [
+    name for name in group.get('all', [])
+    if any(keyword in name for keyword in KEYWORDS)
+]
+
+if not nodes:
+    raise SystemExit(f'No matching nodes found in {GROUP}')
+
+results = []
+for node in nodes:
+    endpoint = (
+        f"{BASE}/proxies/{urllib.parse.quote(node, safe='')}/delay"
+        f"?timeout=5000&url={urllib.parse.quote(TEST_URL, safe='')}"
+    )
+    try:
+        with urllib.request.urlopen(endpoint, timeout=7) as response:
+            delay = json.load(response).get('delay')
+        if isinstance(delay, int):
+            results.append((delay, node))
+            print(f'{node}\t{delay} ms')
+        else:
+            print(f'{node}\tFAIL')
+    except Exception as exc:
+        print(f'{node}\tFAIL\t{exc}')
+
+if not results:
+    raise SystemExit('No available node')
+
+delay, best = min(results)
+request = urllib.request.Request(
+    f"{BASE}/proxies/{urllib.parse.quote(GROUP, safe='')}",
+    data=json.dumps({'name': best}).encode(),
+    method='PUT',
+    headers={'Content-Type': 'application/json'},
+)
+
+with urllib.request.urlopen(request, timeout=5) as response:
+    if response.status != 204:
+        raise SystemExit(f'Switch failed: HTTP {response.status}')
+
+print(f'Switched {GROUP} to {best} ({delay} ms)')
+PY
+```
+
+如果要测速其他地区，把 `KEYWORDS` 改成对应关键词即可，例如：
+
+```python
+KEYWORDS = ('美国', 'US')
+KEYWORDS = ('日本', 'JP')
+KEYWORDS = ('香港', 'HK')
+```
+
+切换后再做一次实际连通性验证：
+
+```bash
+curl -x http://127.0.0.1:7890 \
+  -o /dev/null \
+  -w 'http_code=%{http_code} time=%{time_total}\n' \
+  https://www.gstatic.com/generate_204
+
+curl -x http://127.0.0.1:7890 https://ipinfo.io/json
+```
+
+第一个命令返回 `http_code=204` 说明代理链路能访问外网。第二个命令可以查看出口 IP、国家和城市，用来确认是否已经切到目标地区。
+
+## 10. 停止代理
 
 ```bash
 tmux kill-session -t proxy-test
 ```
 
-## 10. 更新订阅
+## 11. 更新订阅
 
 如果之后更换订阅链接或需要刷新节点：
 
@@ -221,7 +307,7 @@ tmux kill-session -t proxy-test
 tmux new-session -d -s proxy-test "$HOME/proxy-test/bin/mihomo -d $HOME/proxy-test/mihomo"
 ```
 
-## 11. 常见问题
+## 12. 常见问题
 
 ### 新终端无法走代理
 
@@ -261,11 +347,10 @@ tmux new-session -d -s proxy-test "$HOME/proxy-test/bin/mihomo -d $HOME/proxy-te
 
 远程服务器上不建议一开始就开启 TUN、iptables、nftables 或透明代理。先使用 `127.0.0.1:7890` 加环境变量的方式，风险更低，也更容易排查问题。
 
-## 12. 安全建议
+## 13. 安全建议
 
 - 不要公开订阅链接。
 - 不要把 `config.yaml` 提交到公开仓库，因为里面可能包含节点密码。
 - 服务器上优先监听 `127.0.0.1`，不要监听 `0.0.0.0` 或 `*`。
 - 不要随便开启 `allow-lan: true`。
 - 远程服务器优先使用显式代理环境变量，不要一开始改系统路由。
-
