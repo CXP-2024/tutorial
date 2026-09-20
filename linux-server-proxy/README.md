@@ -354,3 +354,7 @@ tmux new-session -d -s proxy-test "$HOME/proxy-test/bin/mihomo -d $HOME/proxy-te
 - 服务器上优先监听 `127.0.0.1`，不要监听 `0.0.0.0` 或 `*`。
 - 不要随便开启 `allow-lan: true`。
 - 远程服务器优先使用显式代理环境变量，不要一开始改系统路由。
+
+## 14. 终端代理开关与 Codex 默认代理
+
+参见 [Bash 按需开启代理，Codex 默认使用代理](bashrc-codex-proxy.md)：关闭自动激活环境，添加 proxy_on / proxy_off，并配置 Codex 独立的 .env。
