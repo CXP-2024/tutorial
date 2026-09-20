@@ -1,0 +1,4 @@
+interface:
+  display_name: "火山训练任务提交与通知"
+  short_description: "复制或提交火山训练任务，跟踪运行状态并通知启动、失败和完成"
+  default_prompt: "使用 $submit-volc-training-task 复制或提交火山训练任务，并跟踪状态发送通知。"

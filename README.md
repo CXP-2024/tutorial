@@ -5,3 +5,4 @@
 - [使用 rclone 上传大文件到 Google Drive，并用 gdown 下载验证](google-drive-rclone/README.md)
 - [在远程 Linux 服务器上使用代理，并通过 tmux 保持后台运行](linux-server-proxy/README.md)
 - [Bash 按需开启代理，Codex 默认使用代理](linux-server-proxy/bashrc-codex-proxy.md)
+- [火山训练任务提交 Skill：安装、认证和队列测试](volc-training-skill/README.md)
